@@ -24,7 +24,7 @@ function ready(){
  $('#fP').onchange=sync;$('#fJ').onchange=sync;
  $('#fAdd').onclick=add;
  $('#edExp').onclick=exportJson;$('#edSave').onclick=save;
- $('#edDisc').onclick=()=>{P.DATA=JSON.parse(base);refresh();msg('Changes discarded.')};
+ $('#edDisc').onclick=()=>{P.DATA=JSON.parse(base);refresh();const cl=$('#cl');if(cl)cl.click();msg('Changes discarded.')};
  $('#edForget').onclick=()=>{$('#edTok').value='';try{sessionStorage.removeItem('gh-token')}catch(e){}msg('Token forgotten.')};
  window.addEventListener('beforeunload',e=>{if(dirty()){e.preventDefault();e.returnValue=''}});
  window.onDetail=onDetail;
