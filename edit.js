@@ -4,33 +4,34 @@ const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const NW=53;
 const REPO=(location.hostname.endsWith('.github.io')?location.hostname.split('.')[0]+'/'+(location.pathname.split('/')[1]||''):'SSH679/landside-capacity-planner');
-let P,base='',on=false;
+let P,base='',on=false,pe=false,peKey='';
 const st=document.createElement('style');
-st.textContent='#edBar{display:none;margin:0 0 12px;padding:10px 12px;border:1px solid var(--acc);border-radius:6px;background:var(--surface)}#edBar.show{display:block}#edBar .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}#edBar .msg{margin-top:8px;color:var(--mut)}#edBar .err{color:var(--u3)}#edBar .ok{color:var(--c2)}#edForm{display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}#edForm.show{display:block}#edForm .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px}#edForm label{display:flex;flex-direction:column;gap:2px;font-size:12px;color:var(--mut)}#edForm[hidden]{display:none}.strip input{width:38px;padding:1px 2px;text-align:center;font:inherit;border:1px solid var(--line);border-radius:3px;background:var(--surface);color:var(--fg)}.rm{margin-left:8px;padding:0 6px;color:var(--u3)}.dirty{font-weight:600;color:var(--acc)}';
+st.textContent='#edBar{display:none;margin:0 0 12px;padding:10px 12px;border:1px solid var(--acc);border-radius:6px;background:var(--surface)}#edBar.show{display:block}#edBar .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}#edBar .msg{margin-top:8px;color:var(--mut)}#edBar .err{color:var(--u3)}#edBar .ok{color:var(--c2)}#edForm{display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}#edForm.show{display:block}#edForm .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px}#edForm label{display:flex;flex-direction:column;gap:2px;font-size:12px;color:var(--mut)}#edForm[hidden]{display:none}.strip input{width:38px;padding:1px 2px;text-align:center;font:inherit;border:1px solid var(--line);border-radius:3px;background:var(--surface);color:var(--fg)}.rm{margin-left:8px;padding:0 6px;color:var(--u3)}.dirty{font-weight:600;color:var(--acc)}button[hidden]{display:none}#pfMsg{color:var(--mut)}#pfMsg.ok{color:var(--c2)}#pfMsg.err{color:var(--u3)}';
 document.head.appendChild(st);
 function ready(){
  P=window.PLANNER;base=JSON.stringify(P.DATA);
  const bar=document.createElement('div');bar.id='edBar';
  bar.innerHTML='<div class="row"><strong>Edit mode</strong><button id="edTeam">+ Team member</button><button id="edProj">+ Project</button><button id="edAlloc">+ Allocation</button><span id="edDirty" class="dirty"></span><span style="flex:1"></span><button id="edExp">Export JSON</button><button id="edSave">Save to GitHub</button><button id="edDisc">Discard changes</button></div>'
  +'<div class="row" style="margin-top:8px"><label style="font-size:12px;color:var(--mut)">GitHub token (this tab only)</label><input id="edTok" type="password" placeholder="fine-grained token, Contents: read &amp; write" style="min-width:260px" autocomplete="off"><button id="edForget">Forget token</button></div>'
- +'<div id="edMsg" class="msg">In the person/project panel, change days per week (0–5) directly in the grid. Saving needs a GitHub token with write access to this repo; without one, use Export JSON.</div>'
+ +'<div id="edMsg" class="msg">To change capacity, click a name and use “Edit allocation” under the grid. Saving needs a GitHub token with write access to this repo; without one, use Export JSON.</div>'
  +'<div id="edForm"><div class="grid"><label>Person<select id="fP"></select></label><label id="lPN">New person name<input id="fPN"></label><label id="lPR">Role<input id="fPR" list="edRoles"></label><label>Project<select id="fJ"></select></label><label id="lJN">New project name<input id="fJN"></label><label>From week (1–53)<input id="fW1" type="number" min="1" max="53" value="1"></label><label>To week (1–53)<input id="fW2" type="number" min="1" max="53" value="53"></label><label>Days per week (1–5)<input id="fD" type="number" min="1" max="5" value="3"></label></div><datalist id="edRoles"></datalist><div class="row" style="margin-top:8px"><button id="fAdd" class="on">Add</button><button id="fCancel">Cancel</button></div></div>';
  const anchor=$('.bar');anchor.parentNode.insertBefore(bar,anchor);
  const tb=document.createElement('button');tb.id='edToggle';tb.textContent='Edit';tb.title='Add projects, team members and change capacity';anchor.appendChild(tb);
  try{$('#edTok').value=sessionStorage.getItem('gh-token')||''}catch(e){}
- tb.onclick=()=>{on=!on;window.EDIT=on;tb.classList.toggle('on',on);bar.classList.toggle('show',on);P.render()};
+ tb.onclick=()=>{on=!on;window.EDIT=on||pe;tb.classList.toggle('on',on);bar.classList.toggle('show',on);P.render()};
  $('#edTeam').onclick=()=>form('newP');$('#edProj').onclick=()=>form('newJ');$('#edAlloc').onclick=()=>form('');
  $('#fCancel').onclick=()=>$('#edForm').classList.remove('show');
  $('#fP').onchange=sync;$('#fJ').onchange=sync;
  $('#fAdd').onclick=add;
  $('#edExp').onclick=exportJson;$('#edSave').onclick=save;
- $('#edDisc').onclick=()=>{P.DATA=JSON.parse(base);refresh();const cl=$('#cl');if(cl)cl.click();msg('Changes discarded.')};
+ $('#edDisc').onclick=discard;
  $('#edForget').onclick=()=>{$('#edTok').value='';try{sessionStorage.removeItem('gh-token')}catch(e){}msg('Token forgotten.')};
  window.addEventListener('beforeunload',e=>{if(dirty()){e.preventDefault();e.returnValue=''}});
  window.onDetail=onDetail;
 }
+function discard(){P.DATA=JSON.parse(base);pe=false;window.EDIT=on;refresh();const cl=$('#cl');if(cl)cl.click();msg('Changes discarded.')}
 function dirty(){return JSON.stringify(P.DATA)!==base}
-function msg(t,c){const m=$('#edMsg');m.className='msg '+(c||'');m.textContent=t;const n=countChanges();$('#edDirty').textContent=dirty()?'Unsaved changes':''}
+function msg(t,c){const m=$('#edMsg');m.className='msg '+(c||'');m.textContent=t;$('#edDirty').textContent=dirty()?'Unsaved changes':'';const p=$('#pfMsg');if(p){p.className=c||'';p.textContent=t}const sv=$('#pfSave');if(sv){sv.hidden=!dirty();$('#pfDisc').hidden=!dirty()}}
 function countChanges(){return dirty()?1:0}
 function refresh(){
  const sel=(id)=>$(id).value;const r=sel('#fRole'),i=sel('#fInit');
@@ -75,8 +76,9 @@ function add(){
 }
 function avail(w){const C=P.CFG;return Math.max(0,C.daysPerWeek-C.holidays.filter(x=>x.week===w).reduce((a,x)=>a+x.daysOff,0))}
 function onDetail(d,sel,items,W){
- if(!on)return;const Pn=sel.t==='P';
- d.querySelectorAll('.strip tbody tr').forEach((tr,i)=>{
+ const key=sel.t+':'+sel.k;if(key!==peKey){peKey=key;pe=false;window.EDIT=on}
+ const Pn=sel.t==='P';
+ if(pe)d.querySelectorAll('.strip tbody tr').forEach((tr,i)=>{
   const o=items[i];if(!o)return;
   const match=x=>Pn?(x.name===sel.k&&x.initiative===o.k):(x.initiative===sel.k&&x.name===o.k);
   tr.querySelectorAll('td.c').forEach((td,j)=>{
@@ -87,12 +89,17 @@ function onDetail(d,sel,items,W){
   const nc=tr.querySelector('td.n');const b=document.createElement('button');b.className='rm';b.textContent='✕';b.title='Remove '+o.k+' from this '+(Pn?'person':'project');
   b.onclick=()=>{P.DATA=P.DATA.filter(x=>!match(x));refresh();msg('Removed '+o.k+'.','ok')};nc.appendChild(b);
  });
+ const f=document.createElement('div');f.className='pf';f.style.cssText='display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px';
+ f.innerHTML='<button id="pfEdit" class="'+(pe?'on':'')+'">'+(pe?'Done editing':'Edit allocation')+'</button><button id="pfSave" class="on"'+(dirty()?'':' hidden')+'>Save to GitHub</button><button id="pfDisc"'+(dirty()?'':' hidden')+'>Discard</button><span id="pfMsg">'+(pe?'Change days per week (0\u20135), then click Done editing.':'')+'</span>';
+ d.appendChild(f);
+ $('#pfEdit').onclick=()=>{pe=!pe;window.EDIT=on||pe;P.render()};
+ $('#pfSave').onclick=save;$('#pfDisc').onclick=discard;
 }
 function exportJson(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(P.DATA)],{type:'application/json'}));a.download='allocations.json';a.click();msg('Exported allocations.json. Replace the file in the repo and commit.','ok')}
 async function save(){
  const tok=$('#edTok').value.trim();
  if(!dirty())return msg('No changes to save.');
- if(!tok)return msg('Paste a GitHub token with Contents read/write access to '+REPO+', or use Export JSON.','err');
+ if(!tok){$('#edBar').classList.add('show');$('#edTok').scrollIntoView({behavior:'smooth',block:'center'});$('#edTok').focus();return msg('Paste a GitHub token with Contents read/write access to '+REPO+', or use Export JSON.','err')}
  try{sessionStorage.setItem('gh-token',tok)}catch(e){}
  const url='https://api.github.com/repos/'+REPO+'/contents/allocations.json';
  const H={Authorization:'Bearer '+tok,Accept:'application/vnd.github+json'};
