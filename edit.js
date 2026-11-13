@@ -74,7 +74,7 @@ function add(){
  msg('Added '+name+' to '+proj+' for W'+w1+'–W'+w2+' ('+d+'d/week).'+(over.length?' Note: over-allocated in W'+over.slice(0,6).join(', W')+(over.length>6?'…':'')+'.':''),over.length?'err':'ok');
  P.open('P',name);
 }
-function avail(w){const C=P.CFG;return Math.max(0,C.daysPerWeek-C.holidays.filter(x=>x.week===w).reduce((a,x)=>a+x.daysOff,0))}
+function avail(w){return P.CFG.daysPerWeek}
 function onDetail(d,sel,items,W){
  const key=sel.t+':'+sel.k;if(key!==peKey){peKey=key;pe=false;window.EDIT=on}
  const Pn=sel.t==='P';
