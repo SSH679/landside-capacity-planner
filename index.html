@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Landside Capacity Planner</title>
+<style>
+:root{--bg:#fff;--fg:#1d2330;--mut:#667085;--line:#e4e7ec;--card:#f7f8fa;--acc:#0b6ea8;--hol:#fff4d6}
+@media(prefers-color-scheme:dark){:root{--bg:#14171d;--fg:#e8eaee;--mut:#98a2b3;--line:#2a2f3a;--card:#1c2029;--acc:#59b0e6;--hol:#3a3220}}
+*{box-sizing:border-box}body{margin:0;font:14px system-ui,sans-serif;background:var(--bg);color:var(--fg)}
+header{padding:16px 20px;border-bottom:1px solid var(--line)}h1{margin:0 0 4px;font-size:20px}.sub{color:var(--mut)}
+.cards{display:flex;gap:12px;flex-wrap:wrap;padding:14px 20px}.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 14px;min-width:140px}
+.card b{display:block;font-size:22px}.card span{color:var(--mut);font-size:12px}
+.bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:0 20px 12px}
+select,input,button{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg)}button{cursor:pointer}button.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+.wrap{overflow:auto;max-height:68vh;margin:0 20px;border:1px solid var(--line);border-radius:8px}
+table{border-collapse:separate;border-spacing:0;font-size:12px}
+th,td{padding:3px 4px;border-bottom:1px solid var(--line);border-right:1px solid var(--line);text-align:center;white-space:nowrap}
+thead th{position:sticky;top:0;background:var(--card);z-index:2}
+.n{position:sticky;left:0;background:var(--bg);text-align:left;min-width:190px;z-index:1;cursor:pointer}thead .n{z-index:3;background:var(--card)}
+.r{position:sticky;left:190px;background:var(--bg);text-align:left;min-width:150px;color:var(--mut);z-index:1}thead .r{z-index:3;background:var(--card)}
+td.c{min-width:38px}th.hol{background:var(--hol)}
+.legend{padding:10px 20px;color:var(--mut);font-size:12px}.legend i{display:inline-block;width:12px;height:12px;border-radius:2px;margin:0 4px -2px 10px}
+#detail{margin:14px 20px;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--card);display:none;overflow:auto}
+#detail input{width:38px;text-align:center;padding:2px}
+</style></head><body>
+<header><h1 id="t">Capacity Planner</h1><div class="sub">Cell = allocated days ÷ available days (5 minus holidays). 3 of 5 days = 60%, 4 of 5 = 80%.</div></header>
+<div class="cards" id="cards"></div>
+<div class="bar">
+ <button id="vP" class="on">By person</button><button id="vI">By initiative</button>
+ <select id="fRole"><option value="">All roles</option></select>
+ <select id="fInit"><option value="">All initiatives</option></select>
+ <input id="fName" placeholder="Search name…">
+ <select id="fQ"><option value="">All weeks</option><option value="1-13">Q1</option><option value="14-26">Q2</option><option value="27-39">Q3</option><option value="40-53">Q4</option></select>
+ <button id="exp">Export JSON</button><button id="rst">Reset edits</button>
+</div>
+<div class="wrap"><table id="g"></table></div>
+<div class="legend">Utilisation:<i style="background:#d0d5dd"></i>0–49%<i style="background:#fde68a"></i>50–79%<i style="background:#86efac"></i>80–100%<i style="background:#f87171"></i>&gt;100% (over)<i style="background:var(--hol);border:1px solid var(--line)"></i>holiday week. Click a name for details &amp; edits.</div>
+<div id="detail"></div>
+<script>
+let CFG,DATA,view='P',NW=53;
+const $=s=>document.querySelector(s), LS='capacity-edits-v1';
+const wkDate=w=>{const d=new Date(CFG.week1Start+'T00:00:00');d.setDate(d.getDate()+7*(w-1));return d};
+const fmt=d=>d.toLocaleDateString('en-GB',{day:'2-digit',month:'short'});
+const avail=w=>{const h=CFG.holidays.filter(x=>x.week===w).reduce((a,x)=>a+x.daysOff,0);return Math.max(0,CFG.daysPerWeek-h)};
+const col=u=>u>1.0001?'#f87171':u>=.8?'#86efac':u>=.5?'#fde68a':u>0?'#d0d5dd':'transparent';
+async function init(){
+ CFG=await (await fetch('config.json')).json();
+ DATA=await (await fetch('allocations.json')).json();
+ try{const s=localStorage.getItem(LS);if(s)DATA=JSON.parse(s)}catch(e){}
+ $('#t').textContent=CFG.title;
+ ['role','initiative'].forEach((k,i)=>{const el=i?$('#fInit'):$('#fRole');[...new Set(DATA.map(r=>r[k]))].sort().forEach(v=>el.add(new Option(v,v)))});
+ ['#fRole','#fInit','#fName','#fQ'].forEach(s=>$(s).addEventListener('input',render));
+ $('#vP').onclick=()=>{view='P';$('#vP').classList.add('on');$('#vI').classList.remove('on');render()};
+ $('#vI').onclick=()=>{view='I';$('#vI').classList.add('on');$('#vP').classList.remove('on');render()};
+ $('#exp').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(DATA,null,1)],{type:'application/json'}));a.download='allocations.json';a.click()};
+ $('#rst').onclick=()=>{try{localStorage.removeItem(LS)}catch(e){}location.reload()};
+ render();
+}
+function rows(){
+ const r=$('#fRole').value,i=$('#fInit').value,n=$('#fName').value.toLowerCase();
+ return DATA.filter(x=>(!r||x.role===r)&&(!i||x.initiative===i)&&(!n||x.name.toLowerCase().includes(n)));
+}
+function weeks(){const q=$('#fQ').value;if(!q)return[...Array(NW)].map((_,i)=>i+1);const[a,b]=q.split('-').map(Number);return[...Array(b-a+1)].map((_,i)=>a+i)}
+function render(){
+ const W=weeks(),R=rows(),g=$('#g');
+ let h='<thead><tr><th class="n">'+(view==='P'?'Person':'Initiative')+'</th><th class="r">'+(view==='P'?'Role':'Headcount')+'</th>';
+ W.forEach(w=>{const hol=CFG.holidays.filter(x=>x.week===w);h+=`<th class="${hol.length?'hol':''}" title="${hol.map(x=>x.label+' (-'+x.daysOff+'d)').join(', ')}">W${w}<br>${fmt(wkDate(w))}</th>`});
+ h+='</tr></thead><tbody>';
+ let people={},tot=0,cnt=0,over=0,free=0;
+ if(view==='P'){
+  R.forEach(x=>{(people[x.name]=people[x.name]||{role:x.role,d:Array(NW).fill(0)});x.days.forEach((v,i)=>people[x.name].d[i]+=v)});
+  Object.entries(people).sort().forEach(([n,p])=>{
+   h+=`<tr><td class="n" data-n="${n}">${n}</td><td class="r">${p.role}</td>`;
+   W.forEach(w=>{const a=avail(w),d=p.d[w-1],u=a?d/a:(d?9:0);
+    if(d>0){tot+=u;cnt++;if(u>1.0001)over++}else if(a>0)free+=a;
+    h+=`<td class="c" style="background:${col(u)}" title="${d}d of ${a}d available">${d?Math.round(u*100)+'%':''}</td>`});
+   h+='</tr>'});
+ }else{
+  const m={};R.forEach(x=>{(m[x.initiative]=m[x.initiative]||Array(NW).fill(0));x.days.forEach((v,i)=>m[x.initiative][i]+=v)});
+  Object.entries(m).sort().forEach(([n,d])=>{
+   h+=`<tr><td class="n">${n}</td><td class="r">${new Set(R.filter(x=>x.initiative===n).map(x=>x.name)).size} people</td>`;
+   W.forEach(w=>{const v=d[w-1];h+=`<td class="c" title="${v} person-days">${v?(v/CFG.daysPerWeek).toFixed(1):''}</td>`});h+='</tr>'});
+  Object.values(m).forEach(()=>{});
+  R.forEach(x=>{(people[x.name]=people[x.name]||{d:Array(NW).fill(0)});x.days.forEach((v,i)=>people[x.name].d[i]+=v)});
+  Object.values(people).forEach(p=>W.forEach(w=>{const a=avail(w),d=p.d[w-1];if(d>0){tot+=a?d/a:9;cnt++;if(a&&d/a>1.0001)over++}else if(a>0)free+=a}));
+  h=h.replace('<th class="r">Headcount','<th class="r">People');
+ }
+ g.innerHTML=h+'</tbody>';
+ g.querySelectorAll('td.n[data-n]').forEach(td=>td.onclick=()=>detail(td.dataset.n));
+ const names=new Set(R.map(x=>x.name));
+ $('#cards').innerHTML=[[names.size,'people'],[new Set(R.map(x=>x.initiative)).size,'initiatives'],[cnt?Math.round(tot/cnt*100)+'%':'–','avg utilisation (allocated weeks)'],[over,'over-allocated person-weeks'],[Math.round(free/CFG.daysPerWeek),'free FTE-weeks (unallocated)']]
+  .map(([a,b])=>`<div class="card"><b>${a}</b><span>${b}</span></div>`).join('');
+}
+function detail(n){
+ const rs=DATA.filter(x=>x.name===n),W=weeks(),d=$('#detail');d.style.display='block';
+ let h=`<h3 style="margin:0 0 8px">${n} <span class="sub">— edit days/week (0–5), then Export JSON and commit</span></h3><table><thead><tr><th class="n" style="position:static">Initiative</th>`;
+ W.forEach(w=>h+=`<th>W${w}</th>`);h+='</tr></thead><tbody>';
+ DATA.forEach((x,ix)=>{if(x.name!==n)return;h+=`<tr><td class="n" style="position:static">${x.initiative}</td>`;
+  W.forEach(w=>h+=`<td><input type="number" min="0" max="5" step="1" value="${x.days[w-1]||''}" data-i="${ix}" data-w="${w-1}"></td>`);h+='</tr>'});
+ d.innerHTML=h+'</tbody></table>';
+ d.querySelectorAll('input').forEach(el=>el.onchange=()=>{DATA[el.dataset.i].days[el.dataset.w]=Math.max(0,Math.min(5,+el.value||0));try{localStorage.setItem(LS,JSON.stringify(DATA))}catch(e){}render()});
+ d.scrollIntoView({behavior:'smooth'});
+}
+init().catch(e=>{document.body.insertAdjacentHTML('beforeend','<p style="padding:20px">Could not load data ('+e+'). Serve via a web server (e.g. <code>python3 -m http.server</code>) or GitHub Pages.</p>')});
+</script></body></html>
