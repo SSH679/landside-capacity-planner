@@ -1,103 +1,143 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Landside Capacity Planner</title>
+<title>Landside 2027 Capacity Planner</title>
 <style>
-:root{--bg:#fff;--fg:#1d2330;--mut:#667085;--line:#e4e7ec;--card:#f7f8fa;--acc:#0b6ea8;--hol:#fff4d6}
-@media(prefers-color-scheme:dark){:root{--bg:#14171d;--fg:#e8eaee;--mut:#98a2b3;--line:#2a2f3a;--card:#1c2029;--acc:#59b0e6;--hol:#3a3220}}
-*{box-sizing:border-box}body{margin:0;font:14px system-ui,sans-serif;background:var(--bg);color:var(--fg)}
-header{padding:16px 20px;border-bottom:1px solid var(--line)}h1{margin:0 0 4px;font-size:20px}.sub{color:var(--mut)}
-.cards{display:flex;gap:12px;flex-wrap:wrap;padding:14px 20px}.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 14px;min-width:140px}
-.card b{display:block;font-size:22px}.card span{color:var(--mut);font-size:12px}
-.bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:0 20px 12px}
-select,input,button{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg)}button{cursor:pointer}button.on{background:var(--acc);color:#fff;border-color:var(--acc)}
-.wrap{overflow:auto;max-height:68vh;margin:0 20px;border:1px solid var(--line);border-radius:8px}
-table{border-collapse:separate;border-spacing:0;font-size:12px}
-th,td{padding:3px 4px;border-bottom:1px solid var(--line);border-right:1px solid var(--line);text-align:center;white-space:nowrap}
-thead th{position:sticky;top:0;background:var(--card);z-index:2}
-.n{position:sticky;left:0;background:var(--bg);text-align:left;min-width:190px;z-index:1;cursor:pointer}thead .n{z-index:3;background:var(--card)}
-.r{position:sticky;left:190px;background:var(--bg);text-align:left;min-width:150px;color:var(--mut);z-index:1}thead .r{z-index:3;background:var(--card)}
-td.c{min-width:38px}th.hol{background:var(--hol)}
-.legend{padding:10px 20px;color:var(--mut);font-size:12px}.legend i{display:inline-block;width:12px;height:12px;border-radius:2px;margin:0 4px -2px 10px}
-#detail{margin:14px 20px;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--card);display:none;overflow:auto}
-#detail input{width:38px;text-align:center;padding:2px}
-</style></head><body>
-<header><h1 id="t">Capacity Planner</h1><div class="sub">Cell = allocated days ÷ available days (5 minus holidays). 3 of 5 days = 60%, 4 of 5 = 80%.</div></header>
+/* Layout: summary cards, filter bar, week heatmap with sticky name column, drill-down panel (donut + breakdown + weekly strip) below. */
+:root{--bg:#f6f7f9;--surface:#fff;--fg:#1b2430;--mut:#5f6b7a;--line:#dde2e8;--acc:#0b6ea8;--hol:#fff1cc;--u0:#d6dbe2;--u1:#fbe38b;--u2:#8fdcab;--u3:#f28b82;--utx:#1b2430;
+--c0:#2f7fc1;--c1:#e08a2c;--c2:#3aa67a;--c3:#b5559b;--c4:#7a6fd0;--c5:#c9564a;--c6:#2aa3b0;--c7:#a3a13a;--c8:#7d8794;--c9:#d1698d}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#10151c;--surface:#171d26;--fg:#e6eaf0;--mut:#94a0b0;--line:#2a3340;--acc:#5cb3ea;--hol:#3b3319;--u0:#364050;--u1:#7a6a22;--u2:#2f7a4c;--u3:#a8433b;--utx:#f1f4f8;
+--c0:#5aa6e6;--c1:#f0a653;--c2:#58c79b;--c3:#d57cbb;--c4:#9d94ee;--c5:#e87c70;--c6:#4cc3d0;--c7:#c6c45a;--c8:#a0aab6;--c9:#ee8cae;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#10151c;--surface:#171d26;--fg:#e6eaf0;--mut:#94a0b0;--line:#2a3340;--acc:#5cb3ea;--hol:#3b3319;--u0:#364050;--u1:#7a6a22;--u2:#2f7a4c;--u3:#a8433b;--utx:#f1f4f8;
+--c0:#5aa6e6;--c1:#f0a653;--c2:#58c79b;--c3:#d57cbb;--c4:#9d94ee;--c5:#e87c70;--c6:#4cc3d0;--c7:#c6c45a;--c8:#a0aab6;--c9:#ee8cae;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:14px/1.45 Inter,system-ui,sans-serif;padding-block:20px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1{font:600 22px/1.2 "Space Grotesk",Inter,sans-serif;margin:0 0 4px;text-wrap:balance}
+.sub{color:var(--mut);max-width:70ch}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:16px 0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:10px 12px;min-width:0}
+.card b{display:block;font:600 22px "Space Grotesk",Inter,sans-serif;font-variant-numeric:tabular-nums}.card span{color:var(--mut);font-size:12px}
+.bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+select,input,button{font:inherit;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px 8px;min-width:0;max-width:100%}
+button{cursor:pointer}button.on{background:var(--acc);border-color:var(--acc);color:var(--bg)}
+:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+.wrap{overflow:auto;max-height:70vh;border:1px solid var(--line);border-radius:6px;background:var(--surface)}
+table{border-collapse:separate;border-spacing:0;font-size:12px;font-variant-numeric:tabular-nums}
+th,td{padding:3px 5px;border-bottom:1px solid var(--line);border-right:1px solid var(--line);text-align:center;white-space:nowrap}
+thead th{position:sticky;top:0;background:var(--surface);z-index:2;font-weight:600}
+.n{position:sticky;left:0;background:var(--surface);text-align:left;min-width:170px;z-index:1}
+thead .n{z-index:3}
+.r{text-align:left;min-width:150px;color:var(--mut)}
+td.n[data-n]{cursor:pointer;color:var(--acc)}td.n[data-n]:hover{text-decoration:underline}
+tr.sel td.n{font-weight:600;box-shadow:inset 3px 0 0 var(--acc)}
+td.c{min-width:40px;color:var(--utx)}
+th.hol{background:var(--hol)}
+.legend{margin:10px 0;color:var(--mut);font-size:12px;display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:2px;margin-right:4px;vertical-align:-2px;border:1px solid var(--line)}
+#detail{margin-top:14px;padding:14px;border:1px solid var(--line);border-radius:6px;background:var(--surface);scroll-margin-top:12px}
+#detail h2{margin:0;font:600 17px "Space Grotesk",Inter,sans-serif}
+#detail .meta{color:var(--mut);margin:2px 0 12px}
+.dhead{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.x{padding:2px 8px}
+.split{display:flex;gap:20px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.donut{flex:0 0 auto;width:190px;max-width:100%}
+.donut text{fill:var(--fg);font-family:"Space Grotesk",Inter,sans-serif}
+.bd{flex:1 1 320px;min-width:0;overflow-x:auto}
+.bd table{width:100%}
+.bd td,.bd th{text-align:left;border-right:0}
+.bd td.num,.bd th.num{text-align:right}
+.bd tr.go{cursor:pointer}.bd tr.go:hover td{background:var(--bg)}
+.sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.bar2{display:inline-block;height:6px;border-radius:3px;vertical-align:middle;margin-left:6px}
+.strip{overflow:auto;border:1px solid var(--line);border-radius:6px;max-height:none}
+.empty{color:var(--mut);padding:8px 0}
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Space+Grotesk:wght@600&display=swap">
+</head><body>
+<h1 id="t"></h1>
+<div class="sub">Weekly allocation per person. Utilisation = allocated days ÷ available days (5 minus holidays); 3 of 5 days = 60%, 4 of 5 = 80%. Click any name or project for its breakdown. Source: OP2 Draft Plan.</div>
 <div class="cards" id="cards"></div>
 <div class="bar">
  <button id="vP" class="on">By person</button><button id="vI">By initiative</button>
- <select id="fRole"><option value="">All roles</option></select>
- <select id="fInit"><option value="">All initiatives</option></select>
- <input id="fName" placeholder="Search name…">
- <select id="fQ"><option value="">All weeks</option><option value="1-13">Q1</option><option value="14-26">Q2</option><option value="27-39">Q3</option><option value="40-53">Q4</option></select>
- <button id="exp">Export JSON</button><button id="rst">Reset edits</button>
+ <select id="fRole" aria-label="Role"><option value="">All roles</option></select>
+ <select id="fInit" aria-label="Initiative"><option value="">All initiatives</option></select>
+ <input id="fName" placeholder="Search name…" aria-label="Search name">
+ <select id="fQ" aria-label="Quarter"><option value="">All weeks</option><option value="1-13">Q1</option><option value="14-26">Q2</option><option value="27-39">Q3</option><option value="40-53">Q4</option></select>
 </div>
 <div class="wrap"><table id="g"></table></div>
-<div class="legend">Utilisation:<i style="background:#d0d5dd"></i>0–49%<i style="background:#fde68a"></i>50–79%<i style="background:#86efac"></i>80–100%<i style="background:#f87171"></i>&gt;100% (over)<i style="background:var(--hol);border:1px solid var(--line)"></i>holiday week. Click a name for details &amp; edits.</div>
-<div id="detail"></div>
+<div class="legend"><span><i style="background:var(--u0)"></i>1–49%</span><span><i style="background:var(--u1)"></i>50–79%</span><span><i style="background:var(--u2)"></i>80–100%</span><span><i style="background:var(--u3)"></i>over 100%</span><span><i style="background:var(--hol)"></i>holiday week</span></div>
+<div id="detail" hidden></div>
 <script>
-let CFG,DATA,view='P',NW=53;
-const $=s=>document.querySelector(s), LS='capacity-edits-v1';
-const wkDate=w=>{const d=new Date(CFG.week1Start+'T00:00:00');d.setDate(d.getDate()+7*(w-1));return d};
-const fmt=d=>d.toLocaleDateString('en-GB',{day:'2-digit',month:'short'});
-const avail=w=>{const h=CFG.holidays.filter(x=>x.week===w).reduce((a,x)=>a+x.daysOff,0);return Math.max(0,CFG.daysPerWeek-h)};
-const col=u=>u>1.0001?'#f87171':u>=.8?'#86efac':u>=.5?'#fde68a':u>0?'#d0d5dd':'transparent';
-async function init(){
+let CFG,DATA;
+(async()=>{
+ try{localStorage.removeItem('capacity-edits-v1')}catch(e){}
  CFG=await (await fetch('config.json',{cache:'no-store'})).json();
  DATA=await (await fetch('allocations.json',{cache:'no-store'})).json();
- try{localStorage.removeItem(LS)}catch(e){}
- $('#t').textContent=CFG.title;
- ['role','initiative'].forEach((k,i)=>{const el=i?$('#fInit'):$('#fRole');[...new Set(DATA.map(r=>r[k]))].sort().forEach(v=>el.add(new Option(v,v)))});
- ['#fRole','#fInit','#fName','#fQ'].forEach(s=>$(s).addEventListener('input',render));
- $('#vP').onclick=()=>{view='P';$('#vP').classList.add('on');$('#vI').classList.remove('on');render()};
- $('#vI').onclick=()=>{view='I';$('#vI').classList.add('on');$('#vP').classList.remove('on');render()};
- $('#exp').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(DATA,null,1)],{type:'application/json'}));a.download='allocations.json';a.click()};
- $('#rst').onclick=()=>{try{localStorage.removeItem(LS)}catch(e){}location.reload()};
- render();
-}
-function rows(){
- const r=$('#fRole').value,i=$('#fInit').value,n=$('#fName').value.toLowerCase();
- return DATA.filter(x=>(!r||x.role===r)&&(!i||x.initiative===i)&&(!n||x.name.toLowerCase().includes(n)));
-}
+ main();
+})().catch(e=>{document.body.insertAdjacentHTML('beforeend','<p>Could not load data ('+e+'). Serve via a web server or GitHub Pages.</p>')});
+function main(){
+const $=s=>document.querySelector(s);
+let view='P',sel=null;const NW=53;
+const wkDate=w=>{const d=new Date(CFG.week1Start+'T00:00:00');d.setDate(d.getDate()+7*(w-1));return d};
+const fmt=d=>d.toLocaleDateString('en-GB',{day:'2-digit',month:'short'});
+const avail=w=>Math.max(0,CFG.daysPerWeek-CFG.holidays.filter(x=>x.week===w).reduce((a,x)=>a+x.daysOff,0));
+const col=u=>u>1.0001?'var(--u3)':u>=.8?'var(--u2)':u>=.5?'var(--u1)':u>0?'var(--u0)':'transparent';
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function rows(){const r=$('#fRole').value,i=$('#fInit').value,n=$('#fName').value.toLowerCase();return DATA.filter(x=>(!r||x.role===r)&&(!i||x.initiative===i)&&(!n||x.name.toLowerCase().includes(n)))}
 function weeks(){const q=$('#fQ').value;if(!q)return[...Array(NW)].map((_,i)=>i+1);const[a,b]=q.split('-').map(Number);return[...Array(b-a+1)].map((_,i)=>a+i)}
 function render(){
- const W=weeks(),R=rows(),g=$('#g');
- let h='<thead><tr><th class="n">'+(view==='P'?'Person':'Initiative')+'</th><th class="r">'+(view==='P'?'Role':'Headcount')+'</th>';
- W.forEach(w=>{const hol=CFG.holidays.filter(x=>x.week===w);h+=`<th class="${hol.length?'hol':''}" title="${hol.map(x=>x.label+' (-'+x.daysOff+'d)').join(', ')}">W${w}<br>${fmt(wkDate(w))}</th>`});
+ const W=weeks(),R=rows();let people={},tot=0,cnt=0,over=0,free=0;
+ let h='<thead><tr><th class="n">'+(view==='P'?'Person':'Initiative')+'</th><th class="r">'+(view==='P'?'Role':'People')+'</th>';
+ W.forEach(w=>{const hol=CFG.holidays.filter(x=>x.week===w);h+=`<th class="${hol.length?'hol':''}" title="${esc(hol.map(x=>x.label+' (-'+x.daysOff+'d)').join(', '))}">W${w}<br>${fmt(wkDate(w))}</th>`});
  h+='</tr></thead><tbody>';
- let people={},tot=0,cnt=0,over=0,free=0;
+ R.forEach(x=>{(people[x.name]=people[x.name]||{role:x.role,d:Array(NW).fill(0)});x.days.forEach((v,i)=>people[x.name].d[i]+=v)});
+ Object.values(people).forEach(p=>W.forEach(w=>{const a=avail(w),d=p.d[w-1];if(d>0){tot+=a?d/a:9;cnt++;if(a&&d/a>1.0001)over++}else if(a>0)free+=a}));
  if(view==='P'){
-  R.forEach(x=>{(people[x.name]=people[x.name]||{role:x.role,d:Array(NW).fill(0)});x.days.forEach((v,i)=>people[x.name].d[i]+=v)});
-  Object.entries(people).sort().forEach(([n,p])=>{
-   h+=`<tr><td class="n" data-n="${n}">${n}</td><td class="r">${p.role}</td>`;
-   W.forEach(w=>{const a=avail(w),d=p.d[w-1],u=a?d/a:(d?9:0);
-    if(d>0){tot+=u;cnt++;if(u>1.0001)over++}else if(a>0)free+=a;
-    h+=`<td class="c" style="background:${col(u)}" title="${d}d of ${a}d available">${d?Math.round(u*100)+'%':''}</td>`});
-   h+='</tr>'});
+  Object.entries(people).sort().forEach(([n,p])=>{h+=`<tr class="${sel&&sel.t==='P'&&sel.k===n?'sel':''}"><td class="n" data-n="${esc(n)}" data-t="P" title="Show projects for ${esc(n)}">${esc(n)}</td><td class="r">${esc(p.role)}</td>`;
+   W.forEach(w=>{const a=avail(w),d=p.d[w-1],u=a?d/a:(d?9:0);h+=`<td class="c" style="background:${col(u)}" title="${d}d of ${a}d available">${d?Math.round(u*100)+'%':''}</td>`});h+='</tr>'});
  }else{
   const m={};R.forEach(x=>{(m[x.initiative]=m[x.initiative]||Array(NW).fill(0));x.days.forEach((v,i)=>m[x.initiative][i]+=v)});
-  Object.entries(m).sort().forEach(([n,d])=>{
-   h+=`<tr><td class="n">${n}</td><td class="r">${new Set(R.filter(x=>x.initiative===n).map(x=>x.name)).size} people</td>`;
+  Object.entries(m).sort().forEach(([n,d])=>{h+=`<tr class="${sel&&sel.t==='I'&&sel.k===n?'sel':''}"><td class="n" data-n="${esc(n)}" data-t="I" title="Show people on ${esc(n)}">${esc(n)}</td><td class="r">${new Set(R.filter(x=>x.initiative===n).map(x=>x.name)).size} people</td>`;
    W.forEach(w=>{const v=d[w-1];h+=`<td class="c" title="${v} person-days">${v?(v/CFG.daysPerWeek).toFixed(1):''}</td>`});h+='</tr>'});
-  Object.values(m).forEach(()=>{});
-  R.forEach(x=>{(people[x.name]=people[x.name]||{d:Array(NW).fill(0)});x.days.forEach((v,i)=>people[x.name].d[i]+=v)});
-  Object.values(people).forEach(p=>W.forEach(w=>{const a=avail(w),d=p.d[w-1];if(d>0){tot+=a?d/a:9;cnt++;if(a&&d/a>1.0001)over++}else if(a>0)free+=a}));
-  h=h.replace('<th class="r">Headcount','<th class="r">People');
  }
- g.innerHTML=h+'</tbody>';
- g.querySelectorAll('td.n[data-n]').forEach(td=>td.onclick=()=>detail(td.dataset.n));
- const names=new Set(R.map(x=>x.name));
- $('#cards').innerHTML=[[names.size,'people'],[new Set(R.map(x=>x.initiative)).size,'initiatives'],[cnt?Math.round(tot/cnt*100)+'%':'–','avg utilisation (allocated weeks)'],[over,'over-allocated person-weeks'],[Math.round(free/CFG.daysPerWeek),'free FTE-weeks (unallocated)']]
-  .map(([a,b])=>`<div class="card"><b>${a}</b><span>${b}</span></div>`).join('');
+ $('#g').innerHTML=h+'</tbody>';
+ $('#g').querySelectorAll('td.n[data-n]').forEach(td=>td.onclick=()=>open(td.dataset.t,td.dataset.n));
+ $('#cards').innerHTML=[[Object.keys(people).length,'people'],[new Set(R.map(x=>x.initiative)).size,'initiatives'],[cnt?Math.round(tot/cnt*100)+'%':'–','avg utilisation in allocated weeks'],[over,'over-allocated person-weeks'],[Math.round(free/CFG.daysPerWeek),'unallocated FTE-weeks']].map(([a,b])=>`<div class="card"><b>${a}</b><span>${b}</span></div>`).join('');
+ if(sel)drawDetail();
 }
-function detail(n){
- const rs=DATA.filter(x=>x.name===n),W=weeks(),d=$('#detail');d.style.display='block';
- let h=`<h3 style="margin:0 0 8px">${n} <span class="sub">— edit days/week (0–5), then Export JSON and commit</span></h3><table><thead><tr><th class="n" style="position:static">Initiative</th>`;
- W.forEach(w=>h+=`<th>W${w}</th>`);h+='</tr></thead><tbody>';
- DATA.forEach((x,ix)=>{if(x.name!==n)return;h+=`<tr><td class="n" style="position:static">${x.initiative}</td>`;
-  W.forEach(w=>h+=`<td><input type="number" min="0" max="5" step="1" value="${x.days[w-1]||''}" data-i="${ix}" data-w="${w-1}"></td>`);h+='</tr>'});
- d.innerHTML=h+'</tbody></table>';
- d.querySelectorAll('input').forEach(el=>el.onchange=()=>{DATA[el.dataset.i].days[el.dataset.w]=Math.max(0,Math.min(5,+el.value||0));render()});
- d.scrollIntoView({behavior:'smooth'});
+function range(days,W){const a=W.filter(w=>days[w-1]>0);if(!a.length)return '–';const f=a[0],l=a[a.length-1];return f===l?'W'+f:'W'+f+'–W'+l}
+function donut(items,total,unit){
+ const R=44,C=2*Math.PI*R;let off=0,segs='';
+ items.forEach((it,i)=>{const len=it.v/total*C;segs+=`<circle r="${R}" cx="60" cy="60" fill="none" stroke="var(--c${i%10})" stroke-width="22" stroke-dasharray="${len} ${C-len}" stroke-dashoffset="${-off}" transform="rotate(-90 60 60)"><title>${esc(it.k)}: ${it.v} person-days (${Math.round(it.v/total*100)}%)</title></circle>`;off+=len});
+ return `<svg class="donut" viewBox="0 0 120 120" role="img" aria-label="Allocation share">${segs}<text x="60" y="58" text-anchor="middle" font-size="17" font-weight="600">${unit}</text><text x="60" y="73" text-anchor="middle" font-size="8" style="fill:var(--mut)">FTE-weeks</text></svg>`;
 }
-init().catch(e=>{document.body.insertAdjacentHTML('beforeend','<p style="padding:20px">Could not load data ('+e+'). Serve via a web server (e.g. <code>python3 -m http.server</code>) or GitHub Pages.</p>')});
+function open(t,k){sel={t,k};render();const d=$('#detail');d.hidden=false;d.scrollIntoView({behavior:'smooth',block:'nearest'})}
+function drawDetail(){
+ const W=weeks(),d=$('#detail'),P=sel.t==='P';
+ const mine=DATA.filter(x=>P?x.name===sel.k:x.initiative===sel.k);
+ const g={};mine.forEach(x=>{const key=P?x.initiative:x.name;const o=(g[key]=g[key]||{k:key,role:x.role,days:Array(NW).fill(0)});x.days.forEach((v,i)=>o.days[i]+=v)});
+ const items=Object.values(g).map(o=>({k:o.k,role:o.role,days:o.days,v:W.reduce((a,w)=>a+o.days[w-1],0)})).filter(o=>o.v>0).sort((a,b)=>b.v-a.v);
+ const total=items.reduce((a,o)=>a+o.v,0);
+ const role=P&&mine[0]?mine[0].role:'';
+ let h=`<div class="dhead"><div><h2>${esc(sel.k)}</h2><div class="meta">${P?esc(role)+' · '+items.length+' project'+(items.length===1?'':'s'):items.length+' '+(items.length===1?'person':'people')+' allocated'}${$('#fQ').value?' · '+esc($('#fQ').selectedOptions[0].text):''}</div></div><button class="x" id="cl" aria-label="Close">✕</button></div>`;
+ if(!total){h+='<div class="empty">No allocation in the selected weeks.</div>'}
+ else{
+  const fte=(total/CFG.daysPerWeek).toFixed(1);
+  h+=`<div class="split">${donut(items,total,fte)}<div class="bd"><table><thead><tr><th>${P?'Project':'Person'}</th>${P?'':'<th>Role</th>'}<th class="num">Days</th><th class="num">Share</th><th>Active</th></tr></thead><tbody>`;
+  items.forEach((o,i)=>{const pc=Math.round(o.v/total*100);h+=`<tr class="go" data-k="${esc(o.k)}" title="Open ${esc(o.k)}"><td><span class="sw" style="background:var(--c${i%10})"></span>${esc(o.k)}</td>${P?'':'<td>'+esc(o.role)+'</td>'}<td class="num">${o.v}</td><td class="num">${pc}%<span class="bar2" style="width:${Math.max(3,pc*0.6)}px;background:var(--c${i%10})"></span></td><td>${range(o.days,W)}</td></tr>`});
+  h+=`</tbody></table></div></div>`;
+  h+=`<div class="strip"><table><thead><tr><th class="n">${P?'Project':'Person'}</th>`+W.map(w=>`<th>W${w}</th>`).join('')+'</tr></thead><tbody>';
+  items.forEach((o,i)=>{h+=`<tr><td class="n"><span class="sw" style="background:var(--c${i%10})"></span>${esc(o.k)}</td>`+W.map(w=>{const v=o.days[w-1];return `<td class="c" style="${v?'background:var(--c'+(i%10)+');color:var(--bg)':''}">${v?v+'d':''}</td>`}).join('')+'</tr>'});
+  h+='</tbody></table></div>';
+ }
+ d.innerHTML=h;
+ $('#cl').onclick=()=>{sel=null;d.hidden=true;render()};
+ d.querySelectorAll('tr.go').forEach(tr=>tr.onclick=()=>{const nt=P?'I':'P';view=nt;$('#vP').classList.toggle('on',nt==='P');$('#vI').classList.toggle('on',nt==='I');open(nt,tr.dataset.k)});
+}
+$('#t').textContent=CFG.title;
+[['role','#fRole'],['initiative','#fInit']].forEach(([k,s])=>[...new Set(DATA.map(r=>r[k]))].sort().forEach(v=>$(s).add(new Option(v,v))));
+['#fRole','#fInit','#fName','#fQ'].forEach(s=>$(s).addEventListener('input',render));
+$('#vP').onclick=()=>{view='P';$('#vP').classList.add('on');$('#vI').classList.remove('on');render()};
+$('#vI').onclick=()=>{view='I';$('#vI').classList.add('on');$('#vP').classList.remove('on');render()};
+render();
+}
 </script></body></html>
