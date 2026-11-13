@@ -42,8 +42,8 @@ const fmt=d=>d.toLocaleDateString('en-GB',{day:'2-digit',month:'short'});
 const avail=w=>{const h=CFG.holidays.filter(x=>x.week===w).reduce((a,x)=>a+x.daysOff,0);return Math.max(0,CFG.daysPerWeek-h)};
 const col=u=>u>1.0001?'#f87171':u>=.8?'#86efac':u>=.5?'#fde68a':u>0?'#d0d5dd':'transparent';
 async function init(){
- CFG=await (await fetch('config.json')).json();
- DATA=await (await fetch('allocations.json')).json();
+ CFG=await (await fetch('config.json',{cache:'no-store'})).json();
+ DATA=await (await fetch('allocations.json',{cache:'no-store'})).json();
  try{localStorage.removeItem(LS)}catch(e){}
  $('#t').textContent=CFG.title;
  ['role','initiative'].forEach((k,i)=>{const el=i?$('#fInit'):$('#fRole');[...new Set(DATA.map(r=>r[k]))].sort().forEach(v=>el.add(new Option(v,v)))});
