@@ -31,6 +31,7 @@ td.n[data-n]{cursor:pointer;color:var(--acc)}td.n[data-n]:hover{text-decoration:
 tr.sel td.n{font-weight:600;box-shadow:inset 3px 0 0 var(--acc)}
 td.c{min-width:40px;color:var(--utx)}
 th.hol{background:var(--hol)}
+thead tr.hr th{height:24px;line-height:16px;font-size:11px;padding:2px 4px}thead tr.wr th{top:24px}
 .legend{margin:10px 0;color:var(--mut);font-size:12px;display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center}
 .legend i{display:inline-block;width:12px;height:12px;border-radius:2px;margin-right:4px;vertical-align:-2px;border:1px solid var(--line)}
 #detail{margin-top:14px;padding:14px;border:1px solid var(--line);border-radius:6px;background:var(--surface);scroll-margin-top:12px}
@@ -54,7 +55,7 @@ th.hol{background:var(--hol)}
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Space+Grotesk:wght@600&display=swap">
 </head><body>
 <h1 id="t"></h1>
-<div class="sub">Weekly allocation per person. Utilisation = allocated days ÷ available days (5 minus holidays); 3 of 5 days = 60%, 4 of 5 = 80%. Click any name or project for its breakdown. Source: OP2 Draft Plan.</div>
+<div class="sub">Weekly allocation per person. Utilisation = allocated days ÷ 5 working days (3 days = 60%, 4 days = 80%). Public holidays are listed in the top row and do not change the percentages. Click any name or project for its breakdown. Source: OP2 Draft Plan.</div>
 <div class="cards" id="cards"></div>
 <div class="bar">
  <button id="vP" class="on">By person</button><button id="vI">By initiative</button>
@@ -79,14 +80,14 @@ const $=s=>document.querySelector(s);
 let view='P',sel=null;const NW=53;
 const wkDate=w=>{const d=new Date(CFG.week1Start+'T00:00:00');d.setDate(d.getDate()+7*(w-1));return d};
 const fmt=d=>d.toLocaleDateString('en-GB',{day:'2-digit',month:'short'});
-const avail=w=>Math.max(0,CFG.daysPerWeek-CFG.holidays.filter(x=>x.week===w).reduce((a,x)=>a+x.daysOff,0));
+const avail=w=>CFG.daysPerWeek;
 const col=u=>u>1.0001?'var(--u3)':u>=.8?'var(--u2)':u>=.5?'var(--u1)':u>0?'var(--u0)':'transparent';
 const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 function rows(){const r=$('#fRole').value,i=$('#fInit').value,n=$('#fName').value.toLowerCase();return DATA.filter(x=>(!r||x.role===r)&&(!i||x.initiative===i)&&(!n||x.name.toLowerCase().includes(n)))}
 function weeks(){const q=$('#fQ').value;if(!q)return[...Array(NW)].map((_,i)=>i+1);const[a,b]=q.split('-').map(Number);return[...Array(b-a+1)].map((_,i)=>a+i)}
 function render(){
  const W=weeks(),R=rows();let people={},tot=0,cnt=0,over=0,free=0;
- let h='<thead><tr><th class="n">'+(view==='P'?'Person':'Initiative')+'</th><th class="r">'+(view==='P'?'Role':'People')+'</th>';
+ let h='<thead><tr class="hr"><th class="n">Public holidays</th><th class="r"></th>'+W.map(w=>{const hh=CFG.holidays.filter(x=>x.week===w);return '<th class="'+(hh.length?'hol':'')+'" title="'+esc(hh.map(x=>x.label).join(', '))+'">'+esc(hh.map(x=>x.label).join(', '))+'</th>'}).join('')+'</tr><tr class="wr"><th class="n">'+(view==='P'?'Person':'Initiative')+'</th><th class="r">'+(view==='P'?'Role':'People')+'</th>';
  W.forEach(w=>{const hol=CFG.holidays.filter(x=>x.week===w);h+=`<th class="${hol.length?'hol':''}" title="${esc(hol.map(x=>x.label+' (-'+x.daysOff+'d)').join(', '))}">W${w}<br>${fmt(wkDate(w))}</th>`});
  h+='</tr></thead><tbody>';
  R.forEach(x=>{(people[x.name]=people[x.name]||{role:x.role,d:Array(NW).fill(0)});x.days.forEach((v,i)=>people[x.name].d[i]+=v)});
