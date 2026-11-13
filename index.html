@@ -44,7 +44,7 @@ const col=u=>u>1.0001?'#f87171':u>=.8?'#86efac':u>=.5?'#fde68a':u>0?'#d0d5dd':'t
 async function init(){
  CFG=await (await fetch('config.json')).json();
  DATA=await (await fetch('allocations.json')).json();
- try{const s=localStorage.getItem(LS);if(s)DATA=JSON.parse(s)}catch(e){}
+ try{localStorage.removeItem(LS)}catch(e){}
  $('#t').textContent=CFG.title;
  ['role','initiative'].forEach((k,i)=>{const el=i?$('#fInit'):$('#fRole');[...new Set(DATA.map(r=>r[k]))].sort().forEach(v=>el.add(new Option(v,v)))});
  ['#fRole','#fInit','#fName','#fQ'].forEach(s=>$(s).addEventListener('input',render));
@@ -96,7 +96,7 @@ function detail(n){
  DATA.forEach((x,ix)=>{if(x.name!==n)return;h+=`<tr><td class="n" style="position:static">${x.initiative}</td>`;
   W.forEach(w=>h+=`<td><input type="number" min="0" max="5" step="1" value="${x.days[w-1]||''}" data-i="${ix}" data-w="${w-1}"></td>`);h+='</tr>'});
  d.innerHTML=h+'</tbody></table>';
- d.querySelectorAll('input').forEach(el=>el.onchange=()=>{DATA[el.dataset.i].days[el.dataset.w]=Math.max(0,Math.min(5,+el.value||0));try{localStorage.setItem(LS,JSON.stringify(DATA))}catch(e){}render()});
+ d.querySelectorAll('input').forEach(el=>el.onchange=()=>{DATA[el.dataset.i].days[el.dataset.w]=Math.max(0,Math.min(5,+el.value||0));render()});
  d.scrollIntoView({behavior:'smooth'});
 }
 init().catch(e=>{document.body.insertAdjacentHTML('beforeend','<p style="padding:20px">Could not load data ('+e+'). Serve via a web server (e.g. <code>python3 -m http.server</code>) or GitHub Pages.</p>')});
