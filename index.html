@@ -115,21 +115,22 @@ function drawDetail(){
  const W=weeks(),d=$('#detail'),P=sel.t==='P';
  const mine=DATA.filter(x=>P?x.name===sel.k:x.initiative===sel.k);
  const g={};mine.forEach(x=>{const key=P?x.initiative:x.name;const o=(g[key]=g[key]||{k:key,role:x.role,days:Array(NW).fill(0)});x.days.forEach((v,i)=>o.days[i]+=v)});
- const items=Object.values(g).map(o=>({k:o.k,role:o.role,days:o.days,v:W.reduce((a,w)=>a+o.days[w-1],0)})).filter(o=>o.v>0).sort((a,b)=>b.v-a.v);
+ const items=Object.values(g).map(o=>({k:o.k,role:o.role,days:o.days,v:W.reduce((a,w)=>a+o.days[w-1],0)})).filter(o=>o.v>0||window.EDIT).sort((a,b)=>b.v-a.v);
  const total=items.reduce((a,o)=>a+o.v,0);
  const role=P&&mine[0]?mine[0].role:'';
  let h=`<div class="dhead"><div><h2>${esc(sel.k)}</h2><div class="meta">${P?esc(role)+' · '+items.length+' project'+(items.length===1?'':'s'):items.length+' '+(items.length===1?'person':'people')+' allocated'}${$('#fQ').value?' · '+esc($('#fQ').selectedOptions[0].text):''}</div></div><button class="x" id="cl" aria-label="Close">✕</button></div>`;
- if(!total){h+='<div class="empty">No allocation in the selected weeks.</div>'}
+ if(!total&&!window.EDIT){h+='<div class="empty">No allocation in the selected weeks.</div>'}
  else{
   const fte=(total/CFG.daysPerWeek).toFixed(1);
-  h+=`<div class="split">${donut(items,total,fte)}<div class="bd"><table><thead><tr><th>${P?'Project':'Person'}</th>${P?'':'<th>Role</th>'}<th class="num">Days</th><th class="num">Share</th><th>Active</th></tr></thead><tbody>`;
-  items.forEach((o,i)=>{const pc=Math.round(o.v/total*100);h+=`<tr class="go" data-k="${esc(o.k)}" title="Open ${esc(o.k)}"><td><span class="sw" style="background:var(--c${i%10})"></span>${esc(o.k)}</td>${P?'':'<td>'+esc(o.role)+'</td>'}<td class="num">${o.v}</td><td class="num">${pc}%<span class="bar2" style="width:${Math.max(3,pc*0.6)}px;background:var(--c${i%10})"></span></td><td>${range(o.days,W)}</td></tr>`});
+  h+=`<div class="split">${total?donut(items,total,fte):''}<div class="bd"><table><thead><tr><th>${P?'Project':'Person'}</th>${P?'':'<th>Role</th>'}<th class="num">Days</th><th class="num">Share</th><th>Active</th></tr></thead><tbody>`;
+  items.forEach((o,i)=>{const pc=total?Math.round(o.v/total*100):0;h+=`<tr class="go" data-k="${esc(o.k)}" title="Open ${esc(o.k)}"><td><span class="sw" style="background:var(--c${i%10})"></span>${esc(o.k)}</td>${P?'':'<td>'+esc(o.role)+'</td>'}<td class="num">${o.v}</td><td class="num">${pc}%<span class="bar2" style="width:${Math.max(3,pc*0.6)}px;background:var(--c${i%10})"></span></td><td>${range(o.days,W)}</td></tr>`});
   h+=`</tbody></table></div></div>`;
   h+=`<div class="strip"><table><thead><tr><th class="n">${P?'Project':'Person'}</th>`+W.map(w=>`<th>W${w}</th>`).join('')+'</tr></thead><tbody>';
   items.forEach((o,i)=>{h+=`<tr><td class="n"><span class="sw" style="background:var(--c${i%10})"></span>${esc(o.k)}</td>`+W.map(w=>{const v=o.days[w-1];return `<td class="c" style="${v?'background:var(--c'+(i%10)+');color:var(--bg)':''}">${v?v+'d':''}</td>`}).join('')+'</tr>'});
   h+='</tbody></table></div>';
  }
  d.innerHTML=h;
+ if(window.onDetail)window.onDetail(d,sel,items,W);
  $('#cl').onclick=()=>{sel=null;d.hidden=true;render()};
  d.querySelectorAll('tr.go').forEach(tr=>tr.onclick=()=>{const nt=P?'I':'P';view=nt;$('#vP').classList.toggle('on',nt==='P');$('#vI').classList.toggle('on',nt==='I');open(nt,tr.dataset.k)});
 }
@@ -139,5 +140,8 @@ $('#t').textContent=CFG.title;
 $('#vP').onclick=()=>{view='P';$('#vP').classList.add('on');$('#vI').classList.remove('on');render()};
 $('#vI').onclick=()=>{view='I';$('#vI').classList.add('on');$('#vP').classList.remove('on');render()};
 render();
+window.PLANNER={get DATA(){return DATA},set DATA(v){DATA=v},get CFG(){return CFG},get sel(){return sel},render,open,weeks};
+window.dispatchEvent(new Event('planner-ready'));
 }
-</script></body></html>
+</script>
+<script src="edit.js"></script></body></html>
